@@ -107,7 +107,7 @@ fun SummonersApp(vm: MainViewModel) {
     val cart = remember { CritterArtHolder.get() }
     val heroArt = remember(gen) { Art.heroSprites(game.hero) }
     val cam = remember(gen) { Camera() }
-    var frame by remember { mutableLongStateOf(0L) }
+    val frame = remember { mutableLongStateOf(0L) }
     var hud by remember { mutableIntStateOf(0) }
     var panel by remember { mutableStateOf("") }
     var inspect by remember { mutableStateOf<String?>(null) }
@@ -133,12 +133,12 @@ fun SummonersApp(vm: MainViewModel) {
                 val dt = if (last == 0L) 0f else ((now - last) / 1e9f).coerceIn(0f, 0.1f)
                 last = now
                 game.tick(dt)
-                frame = now
+                frame.longValue = now
                 hudAcc += dt
                 mergeAcc += dt
                 saveAcc += dt
-                if (inspectT > 0f) inspectT -= dt
                 if (hudAcc > 0.2f) {
+                    if (inspectT > 0f) inspectT -= hudAcc
                     hudAcc = 0f
                     hud++
                     if (game.regionIdx != region) region = game.regionIdx
@@ -167,7 +167,7 @@ fun SummonersApp(vm: MainViewModel) {
         }
 
         @Suppress("UNUSED_VARIABLE") val tick = hud
-        Hud(game, cart, heroArt, cam, vm, hud, onPanel = { panel = it })
+        Hud(game, cart, heroArt, cam, vm, hud, frame, onPanel = { panel = it })
 
         val ins = inspect
         if (ins != null && inspectT > 0f && panel.isEmpty()) {
@@ -257,7 +257,7 @@ fun PixelImage(img: ImageBitmap, size: Int, modifier: Modifier = Modifier, alpha
 }
 
 @Composable
-private fun Hud(game: Game, cart: CritterArt, heroArt: Array<ImageBitmap>, cam: Camera, vm: MainViewModel, hud: Int, onPanel: (String) -> Unit) {
+private fun Hud(game: Game, cart: CritterArt, heroArt: Array<ImageBitmap>, cam: Camera, vm: MainViewModel, hud: Int, frame: androidx.compose.runtime.State<Long>, onPanel: (String) -> Unit) {
     @Suppress("UNUSED_VARIABLE") val t = hud
     val h = game.hero
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -364,7 +364,7 @@ private fun Hud(game: Game, cart: CritterArt, heroArt: Array<ImageBitmap>, cam: 
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            DialogueBox(game, cart, heroArt, Modifier.widthIn(max = 720.dp).fillMaxWidth())
+            DialogueBox(game, cart, heroArt, frame, Modifier.widthIn(max = 720.dp).fillMaxWidth())
             if (game.phase != "ended") VoiceBox(game, Modifier.widthIn(max = 720.dp).fillMaxWidth())
         }
     }
@@ -381,7 +381,9 @@ private fun HudButton(text: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun DialogueBox(game: Game, cart: CritterArt, heroArt: Array<ImageBitmap>, modifier: Modifier) {
+private fun DialogueBox(game: Game, cart: CritterArt, heroArt: Array<ImageBitmap>, frame: androidx.compose.runtime.State<Long>, modifier: Modifier) {
+    // reads the frame clock so the words type out smoothly
+    @Suppress("UNUSED_VARIABLE") val tick = frame.value
     val line = game.line
     AnimatedVisibility(
         visible = line != null,

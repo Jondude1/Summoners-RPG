@@ -66,7 +66,7 @@ private fun col(v: Long) = Color(v)
 @Composable
 fun WorldView(
     game: Game,
-    frame: Long,
+    frame: androidx.compose.runtime.State<Long>,
     cam: Camera,
     land: LandArt,
     heroArt: Array<ImageBitmap>,
@@ -107,7 +107,7 @@ fun WorldView(
     ) {
         sizeRef[0] = size.width
         sizeRef[1] = size.height
-        @Suppress("UNUSED_VARIABLE") val f = frame
+        @Suppress("UNUSED_VARIABLE") val f = frame.value
         drawWorld(game, cam, land, heroArt, cart, tm)
     }
 }
@@ -200,7 +200,16 @@ private fun DrawScope.drawWorld(g: Game, cam: Camera, land: LandArt, heroArt: Ar
         if (o == Obj.NONE) continue
         val img = props.of(o) ?: continue
         val sway = if (o == Obj.TREE || o == Obj.PINE || o == Obj.REED) sin(c.t * 1.2f + tx * 0.7f + ty * 0.3f) * 0.6f else 0f
-        items.add(ty + 0.9f to { sprite(c, img, tx + 0.5f, ty + 0.92f, 1f, false, 1f, null, sway, shadow = o != Obj.FLOWER) })
+        val sc = when (o) {
+            Obj.HOUSE -> 1.75f
+            Obj.GATE -> 1.6f
+            Obj.TENT -> 1.3f
+            Obj.TREE, Obj.PINE -> 1.25f + ((tx * 7 + ty * 3) % 5) * 0.04f
+            Obj.DEADTREE, Obj.PILLAR -> 1.2f
+            else -> 1f
+        }
+        val flip = (tx * 13 + ty * 5) % 2 == 0 && (o == Obj.TREE || o == Obj.BUSH || o == Obj.BOULDER || o == Obj.DEADTREE || o == Obj.REED)
+        items.add(ty + 0.9f to { sprite(c, img, tx + 0.5f, ty + 0.92f, sc, flip, 1f, null, sway, shadow = o != Obj.FLOWER) })
     }
     for (s in m.spots) {
         when (s.kind) {
@@ -211,7 +220,7 @@ private fun DrawScope.drawWorld(g: Game, cam: Camera, land: LandArt, heroArt: Ar
             })
             "gate" -> items.add(s.y - 1f to {
                 val open = if (g.phase == "prologue" && g.step <= 2) 1f else 0.35f
-                riftOval(c, s.x + 0.5f, s.y - 1.7f, 0.55f * open, 1f * open)
+                riftOval(c, s.x + 0.5f, s.y - 2.2f, 0.6f * open, 0.75f * open)
             })
         }
     }
